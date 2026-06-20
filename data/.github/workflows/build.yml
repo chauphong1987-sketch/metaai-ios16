@@ -1,0 +1,33 @@
+name: Build IPA iOS 16
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Xcode Project Structure
+        run: |
+          mkdir -p MetaAI.xcodeproj
+          mkdir -p Payload/MetaAI.app
+          
+      - name: Compile Swift Code
+        run: |
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios16.0 ViewController.swift -o Payload/MetaAI.app/MetaAI
+          
+      - name: Move Plist
+        run: |
+          cp Info.plist Payload/MetaAI.app/Info.plist
+
+      - name: Pack to IPA
+        run: |
+          zip -r MetaAI.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: MetaAI-iOS16-IPA
+          path: MetaAI.ipa
