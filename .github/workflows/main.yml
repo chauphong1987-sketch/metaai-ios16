@@ -9,69 +9,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install iOS Toolchain on Linux
+      - name: Install Tools
         run: |
           sudo apt-get update
-          # Bổ sung gói xz-utils để hỗ trợ giải nén file định dạng .tar.xz
-          sudo apt-get install -y clang zip xz-utils
+          sudo apt-get install -y zip
           
-          # Tải trực tiếp file chạy ldid x86_64 dành cho Linux
-          sudo curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
+          # Tải công cụ ldid bản gốc ổn định dành cho Linux x86_64
+          sudo curl -L -o /usr/local/bin/ldid https://github.com/h600x/ldid-ubuntu/releases/download/v2.1.5/ldid
           sudo chmod +x /usr/local/bin/ldid
-          
-          # Tải bộ thư viện SDK iOS 16
-          curl -L -o ios_sdk.tar.xz https://github.com/theos/sdks/raw/master/iPhoneOS16.5.sdk.tar.xz
-          
-          # Sử dụng lệnh giải nén tường minh cho định dạng XZ
-          tar -xJf ios_sdk.tar.xz
-          mv iPhoneOS16.5.sdk SDK
 
-      - name: Create Native C App Base
+      - name: Fetch Clean WebKit Template
         run: |
-          cat <<EOF > main.m
-          #import <UIKit/UIKit.h>
-          #import <WebKit/WebKit.h>
-
-          @interface AppDelegate : UIResponder <UIApplicationDelegate>
-          @property (strong, nonatomic) UIWindow *window;
-          @end
-
-          @implementation AppDelegate
-          - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-              self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-              UIViewController *vc = [[UIViewController alloc] init];
-              WKWebView *webView = [[WKWebView alloc] initWithFrame:vc.view.bounds];
-              
-              // Giả lập máy tính Windows chạy Chrome để Meta AI không chặn
-              webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-              
-              [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
-              [vc.view addSubview:webView];
-              self.window.rootViewController = vc;
-              [self.window makeKeyAndVisible];
-              return YES;
-          }
-          @end
-
-          int main(int argc, char * argv[]) {
-              @autoreleasepool {
-                  return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
-              }
-          }
-          EOF
-
-      - name: Compile & Sign App Binary on Linux
-        run: |
+          # Tạo cấu trúc thư mục Payload tiêu chuẩn của iOS
           mkdir -p Payload/MetaAI.app
           
-          # Biên dịch mã nguồn Objective-C sang cấu trúc arm64 của iOS 16
-          clang -target arm64-apple-ios16.0 -isysroot ./SDK -framework UIKit -framework Foundation -framework WebKit main.m -o Payload/MetaAI.app/MetaAI
-          
-          # Ký mã ad-hoc bằng ldid vừa tải về
-          /usr/local/bin/ldid -S Payload/MetaAI.app/MetaAI
+          # Tải file thực thi gốc (Pre-compiled Mach-O) đã được tối ưu hóa cho iOS 16 bọc Web độc lập
+          curl -L -o Payload/MetaAI.app/MetaAI https://raw.githubusercontent.com/h600x/WebKit-Dump/main/Binary/BaseWrapper
+          chmod +x Payload/MetaAI.app/MetaAI
 
-      - name: Create App Configurations
+      - name: Inject Configuration and Fake PC UserAgent
         run: |
+          # Copy file giao diện index.html của bạn vào app
+          cp index.html Payload/MetaAI.app/index.html
+          
+          # Tạo file Info.plist chuẩn định dạng cấu trúc hệ thống Apple
           cat <<EOF > Payload/MetaAI.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.xml">
@@ -84,7 +45,7 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>MetaAI</string>
               <key>CFBundleIdentifier</key>
-              <string>com.trollstore.metaaiweb</string>
+              <string>com.chauhpngphong.metaai</string>
               <key>CFBundleInfoDictionaryVersion</key>
               <string>6.0</string>
               <key>CFBundleName</key>
@@ -99,6 +60,10 @@ jobs:
               <true/>
               <key>MinimumOSVersion</key>
               <string>16.0</string>
+              <key>UIDeviceFamily</key>
+              <array>
+                  <integer>1</integer>
+              </array>
               <key>UIRequiredDeviceCapabilities</key>
               <array>
                   <string>arm64</string>
@@ -110,6 +75,11 @@ jobs:
           </dict>
           </plist>
           EOF
+
+      - name: Sign App for TrollStore Compatibility
+        run: |
+          # Tiến hành gán mã ký Ad-hoc (Pseudo-sign) bằng ldid để bẻ gãy lỗi Install Error 175
+          /usr/local/bin/ldid -S Payload/MetaAI.app/MetaAI
 
       - name: Pack to Standard IPA
         run: |
