@@ -12,15 +12,18 @@ jobs:
       - name: Install iOS Toolchain on Linux
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang zip
+          # Bổ sung gói xz-utils để hỗ trợ giải nén file định dạng .tar.xz
+          sudo apt-get install -y clang zip xz-utils
           
           # Tải trực tiếp file chạy ldid x86_64 dành cho Linux
           sudo curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
           sudo chmod +x /usr/local/bin/ldid
           
           # Tải bộ thư viện SDK iOS 16
-          curl -L -o ios_sdk.tar.gz https://github.com/theos/sdks/raw/master/iPhoneOS16.5.sdk.tar.xz
-          tar -xf ios_sdk.tar.gz
+          curl -L -o ios_sdk.tar.xz https://github.com/theos/sdks/raw/master/iPhoneOS16.5.sdk.tar.xz
+          
+          # Sử dụng lệnh giải nén tường minh cho định dạng XZ
+          tar -xJf ios_sdk.tar.xz
           mv iPhoneOS16.5.sdk SDK
 
       - name: Create Native C App Base
