@@ -1,32 +1,26 @@
-name: Build IPA iOS 16
+name: Build IPA Linux Fast
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Xcode Project Structure
+      - name: Create App Structure
         run: |
           mkdir -p Payload/MetaAI.app
-          
-      - name: Compile Swift Code
-        run: |
-          xcrun -sdk iphoneos swiftc -target arm64-apple-ios16.0 ViewController.swift -o Payload/MetaAI.app/MetaAI
-          
-      - name: Move Plist
-        run: |
+          cp index.html Payload/MetaAI.app/index.html
           cp Info.plist Payload/MetaAI.app/Info.plist
 
       - name: Pack to IPA
         run: |
           zip -r MetaAI.ipa Payload
 
-      - name: Upload IPA Artifact
+      - name: Upload IPA to Github
         uses: actions/upload-artifact@v3
         with:
-          name: MetaAI-iOS16-IPA
+          name: MetaAI-Pure-IPA
           path: MetaAI.ipa
