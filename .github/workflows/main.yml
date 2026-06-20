@@ -4,7 +4,6 @@ on:
 
 jobs:
   build:
-    # Sử dụng máy chủ Apple Silicon M1 mới nhất để kích hoạt ngay lập tức không cần đợi
     runs-on: macos-14
     steps:
       - name: Checkout code
@@ -12,7 +11,6 @@ jobs:
 
       - name: Create Objective-C Code for App Base
         run: |
-          # Tự tạo mã nguồn khởi chạy trình duyệt bằng Objective-C cực nhẹ
           cat <<EOF > main.m
           #import <UIKit/UIKit.h>
           #import <WebKit/WebKit.h>
@@ -27,7 +25,7 @@ jobs:
               UIViewController *vc = [[UIViewController alloc] init];
               WKWebView *webView = [[WKWebView alloc] initWithFrame:vc.view.bounds];
               
-              # Giả lập trình duyệt Máy tính (PC UserAgent) để vượt rào Meta AI hoàn toàn
+              // Sua ghi chu thanh hai gach cheo hop le cho Objective-C
               webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
               
               [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
@@ -48,12 +46,10 @@ jobs:
       - name: Compile Native iOS Binary (Mach-O)
         run: |
           mkdir -p Payload/MetaAI.app
-          # Biên dịch trực tiếp mã nguồn thành file nhị phân chuẩn arm64 cho iOS 16 bằng bộ công cụ Xcode gốc
           xcrun -sdk iphoneos clang -arch arm64 -miphoneos-version-min=16.0 -framework UIKit -framework Foundation -framework WebKit main.m -o Payload/MetaAI.app/MetaAI
 
       - name: Create App Configurations
         run: |
-          # Tạo file cấu hình hệ thống Info.plist tiêu chuẩn Apple
           cat <<EOF > Payload/MetaAI.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.xml">
@@ -99,7 +95,6 @@ jobs:
 
       - name: Sign Binary natively via codesign
         run: |
-          # Sử dụng công cụ chính chủ của Apple để ký Ad-hoc đảm bảo TrollStore không bao giờ báo lỗi ký mã nữa
           codesign -s - --force --preserve-metadata=identifier,entitlements,flags Payload/MetaAI.app/MetaAI
 
       - name: Pack to Standard IPA
