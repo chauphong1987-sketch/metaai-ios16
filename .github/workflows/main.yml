@@ -9,12 +9,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install ldid (Signing Tool for iOS)
+        run: |
+          # Tải và cài đặt công cụ ký mã ldid trực tiếp trên Linux
+          sudo curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
+          sudo chmod +x /usr/local/bin/ldid
+
       - name: Download iOS WebWrapper Template
         run: |
-          # Tạo cấu trúc thư mục tiêu chuẩn cho App iOS
           mkdir -p Payload/MetaAI.app
           
-          # Tạo file định danh cấu hình ứng dụng
+          # Tạo file Info.plist tiêu chuẩn
           cat <<EOF > Payload/MetaAI.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.xml">
@@ -56,19 +61,20 @@ jobs:
           </plist>
           EOF
 
-      - name: Inject HTML and Mock Binary
+      - name: Inject HTML and Sign Binary
         run: |
-          # Đưa file giao diện web của bạn vào lõi ứng dụng
+          # Sao chép file giao diện của bạn vào app
           cp index.html Payload/MetaAI.app/index.html
           
-          # Tải file thực thi nền (Native Binary WebKit) hợp lệ cho iOS
-          # File này đóng vai trò kích hoạt trình duyệt gốc chạy file index.html của bạn
+          # Tải file thực thi nền (Native Binary) hợp lệ
           curl -L -o Payload/MetaAI.app/MetaAI https://github.com/doraicloud/native-wrapper-bin/raw/main/MetaAI
           chmod +x Payload/MetaAI.app/MetaAI
+          
+          # Tiến hành ký mã giả lập (Pseudo-sign) bằng ldid để sửa lỗi Install Error 175 trên TrollStore
+          ldid -S Payload/MetaAI.app/MetaAI
 
       - name: Pack to Standard IPA
         run: |
-          # Đóng gói chuẩn nén định dạng zip-payload của Apple
           zip -r MetaAI.ipa Payload
 
       - name: Upload IPA to Github
