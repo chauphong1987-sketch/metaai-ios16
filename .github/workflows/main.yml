@@ -1,17 +1,28 @@
-name: Build Native Real IPA iOS 16
+name: Build Real IPA Linux Instant
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create Objective-C Code for App Base
+      - name: Install iOS Toolchain on Linux
         run: |
-          # Tự tạo file mã nguồn khởi chạy trình duyệt bằng Objective-C cực nhẹ
+          # Cài đặt trình biên dịch Clang và công cụ ký mã ldid chuẩn trên Linux
+          sudo apt-get update
+          sudo apt-get install -y clang ldid zip
+          
+          # Tải bộ thư viện SDK iOS rút gọn để Linux có thể tự biên dịch được code iOS
+          curl -L -o ios_sdk.tar.gz https://github.com/theos/sdks/raw/master/iPhoneOS16.5.sdk.tar.xz
+          tar -xf ios_sdk.tar.gz
+          mv iPhoneOS16.5.sdk SDK
+
+      - name: Create Native C App Base
+        run: |
+          # Tạo mã nguồn ứng dụng bọc Web chính chủ bằng Objective-C
           cat <<EOF > main.m
           #import <UIKit/UIKit.h>
           #import <WebKit/WebKit.h>
@@ -26,7 +37,7 @@ jobs:
               UIViewController *vc = [[UIViewController alloc] init];
               WKWebView *webView = [[WKWebView alloc] initWithFrame:vc.view.bounds];
               
-              // Giả lập máy tính Windows chạy Chrome để vượt rào Meta AI
+              // Giả lập máy tính Windows chạy Chrome để Meta AI không chặn
               webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
               
               [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
@@ -44,11 +55,15 @@ jobs:
           }
           EOF
 
-      - name: Compile Native iOS Binary (Mach-O)
+      - name: Compile & Sign App Binary on Linux
         run: |
           mkdir -p Payload/MetaAI.app
-          # Biên dịch trực tiếp file main.m thành file nhị phân MetaAI chuẩn arm64 cho iOS 16
-          xcrun -sdk iphoneos clang -arch arm64 -miphoneos-version-min=16.0 -framework UIKit -framework Foundation -framework WebKit main.m -o Payload/MetaAI.app/MetaAI
+          
+          # Lệnh Linux tự biên dịch ra file thực thi iOS 16 thông qua bộ SDK vừa tải
+          clang -target arm64-apple-ios16.0 -isysroot ./SDK -framework UIKit -framework Foundation -framework WebKit main.m -o Payload/MetaAI.app/MetaAI
+          
+          # Ký mã ad-hoc chuẩn bằng ldid để TrollStore chấp nhận
+          ldid -S Payload/MetaAI.app/MetaAI
 
       - name: Create App Configurations
         run: |
@@ -80,8 +95,6 @@ jobs:
               <true/>
               <key>MinimumOSVersion</key>
               <string>16.0</string>
-              <key>UILaunchStoryboardName</key>
-              <string></string>
               <key>UIRequiredDeviceCapabilities</key>
               <array>
                   <string>arm64</string>
@@ -94,11 +107,6 @@ jobs:
           </plist>
           EOF
 
-      - name: Sign Binary natively via codesign
-        run: |
-          # Sử dụng chính công cụ chính chủ của Apple trên Mac để ký ad-hoc sửa lỗi ldid hoàn toàn
-          codesign -s - --force --preserve-metadata=identifier,entitlements,flags Payload/MetaAI.app/MetaAI
-
       - name: Pack to Standard IPA
         run: |
           zip -r MetaAI.ipa Payload
@@ -106,5 +114,5 @@ jobs:
       - name: Upload IPA to Github
         uses: actions/upload-artifact@v4
         with:
-          name: MetaAI-iOS16-Native-IPA
+          name: MetaAI-iOS16-Instant-IPA
           path: MetaAI.ipa
