@@ -26,35 +26,35 @@ jobs:
               UIViewController *vc = [[UIViewController alloc] init];
               
               WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+              
+              // 1. Cho phép JavaScript tương tác sâu và tự động kích hoạt mã nguồn
               config.preferences.javaScriptEnabled = YES;
               config.preferences.javaScriptCanOpenWindowsAutomatically = YES;
               
+              // 2. Kích hoạt lưu trữ cục bộ và đồng bộ dữ liệu phiên đăng nhập (Fix lỗi ẩn nút)
+              [config.preferences setValue:@YES forKey:@"developerExtrasEnabled"];
+              if (@available(iOS 13.0, *)) {
+                  config.defaultWebpagePreferences.allowsContentJavaScript = YES;
+              }
+              
+              // 3. Khởi tạo WebView với cấu hình bảo mật mở rộng
               self.webView = [[WKWebView alloc] initWithFrame:vc.view.bounds configuration:config];
               self.webView.navigationDelegate = self;
               self.webView.UIDelegate = self;
               
-              // Cho phép người dùng thu phóng màn hình tự do
-              self.webView.allowsLinkPreview = YES;
+              // 4. Định dạng UserAgent PC chuẩn hóa hoàn toàn (Tránh bị hệ thống Meta nhận diện bất thường)
+              self.webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
               
-              // Ép thông số User-Agent sang Desktop Chrome hoàn chỉnh
-              self.webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-              
+              // 5. Nạp URL gốc
               [self.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
+              
               [vc.view addSubview:self.webView];
               self.window.rootViewController = vc;
               [self.window makeKeyAndVisible];
               return YES;
           }
 
-          // Ép giao diện Meta AI nhận diện chiều rộng lớn ngay khi tải xong trang
-          - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
-              NSString *jScript = @"var meta = document.createElement('meta'); "
-                                   "meta.name = 'viewport'; "
-                                   "meta.content = 'width=1280, initial-scale=0.5, maximum-scale=2.0, user-scalable=yes'; "
-                                   "document.getElementsByTagName('head')[0].appendChild(meta);";
-              [webView evaluateJavaScript:jScript completionHandler:nil];
-          }
-
+          // Xử lý chuyển hướng tất cả các yêu cầu mở cửa sổ mới (Popup Đăng nhập) về khung hình chính
           - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures {
               if (!navigationAction.targetFrame.isMainFrame) {
                   [webView loadRequest:navigationAction.request];
@@ -104,6 +104,11 @@ jobs:
               <true/>
               <key>MinimumOSVersion</key>
               <string>16.0</string>
+              <key>NSAppTransportSecurity</key>
+              <dict>
+                  <key>NSAllowsArbitraryLoads</key>
+                  <true/>
+              </dict>
               <key>UIDeviceFamily</key>
               <array>
                   <integer>1</integer>
