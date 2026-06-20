@@ -15,7 +15,6 @@ jobs:
           #import <UIKit/UIKit.h>
           #import <WebKit/WebKit.h>
 
-          // Kích hoạt giao thức xử lý điều hướng nâng cao cho WebView
           @interface AppDelegate : UIResponder <UIApplicationDelegate, WKNavigationDelegate, WKUIDelegate>
           @property (strong, nonatomic) UIWindow *window;
           @property (strong, nonatomic) WKWebView *webView;
@@ -26,16 +25,18 @@ jobs:
               self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
               UIViewController *vc = [[UIViewController alloc] init];
               
-              // Cấu hình cho phép JavaScript và tương tác mượt mà
               WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
               config.preferences.javaScriptEnabled = YES;
               config.preferences.javaScriptCanOpenWindowsAutomatically = YES;
               
               self.webView = [[WKWebView alloc] initWithFrame:vc.view.bounds configuration:config];
               self.webView.navigationDelegate = self;
-              self.webView.UIDelegate = self; // Gán UIDelegate để nhận diện các lệnh bấm nút, popup
+              self.webView.UIDelegate = self;
               
-              // Giả lập trình duyệt Máy tính (PC UserAgent) hoàn chỉnh
+              // Cho phép người dùng thu phóng màn hình tự do
+              self.webView.allowsLinkPreview = YES;
+              
+              // Ép thông số User-Agent sang Desktop Chrome hoàn chỉnh
               self.webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
               
               [self.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
@@ -45,7 +46,15 @@ jobs:
               return YES;
           }
 
-          // Hàm bắt buộc để sửa lỗi không bấm được nút đăng nhập (Hỗ trợ mở cửa sổ Đăng nhập mới)
+          // Ép giao diện Meta AI nhận diện chiều rộng lớn ngay khi tải xong trang
+          - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+              NSString *jScript = @"var meta = document.createElement('meta'); "
+                                   "meta.name = 'viewport'; "
+                                   "meta.content = 'width=1280, initial-scale=0.5, maximum-scale=2.0, user-scalable=yes'; "
+                                   "document.getElementsByTagName('head')[0].appendChild(meta);";
+              [webView evaluateJavaScript:jScript completionHandler:nil];
+          }
+
           - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures {
               if (!navigationAction.targetFrame.isMainFrame) {
                   [webView loadRequest:navigationAction.request];
