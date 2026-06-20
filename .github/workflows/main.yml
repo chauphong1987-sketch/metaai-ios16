@@ -20,7 +20,7 @@ jobs:
           zip -r MetaAI.ipa Payload
 
       - name: Upload IPA to Github
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MetaAI-Pure-IPA
           path: MetaAI.ipa
