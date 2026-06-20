@@ -15,24 +15,42 @@ jobs:
           #import <UIKit/UIKit.h>
           #import <WebKit/WebKit.h>
 
-          @interface AppDelegate : UIResponder <UIApplicationDelegate>
+          // Kích hoạt giao thức xử lý điều hướng nâng cao cho WebView
+          @interface AppDelegate : UIResponder <UIApplicationDelegate, WKNavigationDelegate, WKUIDelegate>
           @property (strong, nonatomic) UIWindow *window;
+          @property (strong, nonatomic) WKWebView *webView;
           @end
 
           @implementation AppDelegate
           - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
               self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
               UIViewController *vc = [[UIViewController alloc] init];
-              WKWebView *webView = [[WKWebView alloc] initWithFrame:vc.view.bounds];
               
-              // Sua ghi chu thanh hai gach cheo hop le cho Objective-C
-              webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+              // Cấu hình cho phép JavaScript và tương tác mượt mà
+              WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+              config.preferences.javaScriptEnabled = YES;
+              config.preferences.javaScriptCanOpenWindowsAutomatically = YES;
               
-              [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
-              [vc.view addSubview:webView];
+              self.webView = [[WKWebView alloc] initWithFrame:vc.view.bounds configuration:config];
+              self.webView.navigationDelegate = self;
+              self.webView.UIDelegate = self; // Gán UIDelegate để nhận diện các lệnh bấm nút, popup
+              
+              // Giả lập trình duyệt Máy tính (PC UserAgent) hoàn chỉnh
+              self.webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+              
+              [self.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
+              [vc.view addSubview:self.webView];
               self.window.rootViewController = vc;
               [self.window makeKeyAndVisible];
               return YES;
+          }
+
+          // Hàm bắt buộc để sửa lỗi không bấm được nút đăng nhập (Hỗ trợ mở cửa sổ Đăng nhập mới)
+          - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures {
+              if (!navigationAction.targetFrame.isMainFrame) {
+                  [webView loadRequest:navigationAction.request];
+              }
+              return nil;
           }
           @end
 
