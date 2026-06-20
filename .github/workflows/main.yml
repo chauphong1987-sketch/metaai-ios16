@@ -1,25 +1,58 @@
-name: Build Real IPA iOS 16
+name: Build Native Real IPA iOS 16
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-13
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install ldid (Signing Tool for iOS)
+      - name: Create Objective-C Code for App Base
         run: |
-          # Tải và cài đặt công cụ ký mã ldid trực tiếp trên Linux
-          sudo curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
-          sudo chmod +x /usr/local/bin/ldid
+          # Tự tạo file mã nguồn khởi chạy trình duyệt bằng Objective-C cực nhẹ
+          cat <<EOF > main.m
+          #import <UIKit/UIKit.h>
+          #import <WebKit/WebKit.h>
 
-      - name: Download iOS WebWrapper Template
+          @interface AppDelegate : UIResponder <UIApplicationDelegate>
+          @property (strong, nonatomic) UIWindow *window;
+          @end
+
+          @implementation AppDelegate
+          - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+              self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+              UIViewController *vc = [[UIViewController alloc] init];
+              WKWebView *webView = [[WKWebView alloc] initWithFrame:vc.view.bounds];
+              
+              // Giả lập máy tính Windows chạy Chrome để vượt rào Meta AI
+              webView.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+              
+              [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://www.meta.ai"]]];
+              [vc.view addSubview:webView];
+              self.window.rootViewController = vc;
+              [self.window makeKeyAndVisible];
+              return YES;
+          }
+          @end
+
+          int main(int argc, char * argv[]) {
+              @autoreleasepool {
+                  return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
+              }
+          }
+          EOF
+
+      - name: Compile Native iOS Binary (Mach-O)
         run: |
           mkdir -p Payload/MetaAI.app
-          
-          # Tạo file Info.plist tiêu chuẩn
+          # Biên dịch trực tiếp file main.m thành file nhị phân MetaAI chuẩn arm64 cho iOS 16
+          xcrun -sdk iphoneos clang -arch arm64 -miphoneos-version-min=16.0 -framework UIKit -framework Foundation -framework WebKit main.m -o Payload/MetaAI.app/MetaAI
+
+      - name: Create App Configurations
+        run: |
+          # Tạo file Info.plist đi kèm cấu trúc app
           cat <<EOF > Payload/MetaAI.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.xml">
@@ -48,7 +81,7 @@ jobs:
               <key>MinimumOSVersion</key>
               <string>16.0</string>
               <key>UILaunchStoryboardName</key>
-              <string>LaunchScreen</string>
+              <string></string>
               <key>UIRequiredDeviceCapabilities</key>
               <array>
                   <string>arm64</string>
@@ -61,17 +94,10 @@ jobs:
           </plist>
           EOF
 
-      - name: Inject HTML and Sign Binary
+      - name: Sign Binary natively via codesign
         run: |
-          # Sao chép file giao diện của bạn vào app
-          cp index.html Payload/MetaAI.app/index.html
-          
-          # Tải file thực thi nền (Native Binary) hợp lệ
-          curl -L -o Payload/MetaAI.app/MetaAI https://github.com/doraicloud/native-wrapper-bin/raw/main/MetaAI
-          chmod +x Payload/MetaAI.app/MetaAI
-          
-          # Tiến hành ký mã giả lập (Pseudo-sign) bằng ldid để sửa lỗi Install Error 175 trên TrollStore
-          ldid -S Payload/MetaAI.app/MetaAI
+          # Sử dụng chính công cụ chính chủ của Apple trên Mac để ký ad-hoc sửa lỗi ldid hoàn toàn
+          codesign -s - --force --preserve-metadata=identifier,entitlements,flags Payload/MetaAI.app/MetaAI
 
       - name: Pack to Standard IPA
         run: |
@@ -80,5 +106,5 @@ jobs:
       - name: Upload IPA to Github
         uses: actions/upload-artifact@v4
         with:
-          name: MetaAI-iOS16-Real-IPA
+          name: MetaAI-iOS16-Native-IPA
           path: MetaAI.ipa
