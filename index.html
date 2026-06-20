@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta AI</title>
+    <style>
+        body, html, iframe { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background-color: #000; }
+    </style>
+</head>
+<body>
+    <iframe id="meta-frame" src="https://www.meta.ai" frameborder="0"></iframe>
+
+    <script>
+        // Lệnh ép trình duyệt ẩn danh dưới dạng máy tính Windows chạy Chrome
+        const frame = document.getElementById('meta-frame');
+        Object.defineProperty(navigator, 'userAgent', {
+            get: function () { return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'; }
+        });
+    </script>
+</body>
+</html>
