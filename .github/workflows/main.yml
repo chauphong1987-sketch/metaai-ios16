@@ -11,18 +11,20 @@ jobs:
 
       - name: Install iOS Toolchain on Linux
         run: |
-          # Cài đặt trình biên dịch Clang và công cụ ký mã ldid chuẩn trên Linux
           sudo apt-get update
-          sudo apt-get install -y clang ldid zip
+          sudo apt-get install -y clang zip
           
-          # Tải bộ thư viện SDK iOS rút gọn để Linux có thể tự biên dịch được code iOS
+          # Tải trực tiếp file chạy ldid x86_64 dành cho Linux
+          sudo curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64
+          sudo chmod +x /usr/local/bin/ldid
+          
+          # Tải bộ thư viện SDK iOS 16
           curl -L -o ios_sdk.tar.gz https://github.com/theos/sdks/raw/master/iPhoneOS16.5.sdk.tar.xz
           tar -xf ios_sdk.tar.gz
           mv iPhoneOS16.5.sdk SDK
 
       - name: Create Native C App Base
         run: |
-          # Tạo mã nguồn ứng dụng bọc Web chính chủ bằng Objective-C
           cat <<EOF > main.m
           #import <UIKit/UIKit.h>
           #import <WebKit/WebKit.h>
@@ -59,15 +61,14 @@ jobs:
         run: |
           mkdir -p Payload/MetaAI.app
           
-          # Lệnh Linux tự biên dịch ra file thực thi iOS 16 thông qua bộ SDK vừa tải
+          # Biên dịch mã nguồn Objective-C sang cấu trúc arm64 của iOS 16
           clang -target arm64-apple-ios16.0 -isysroot ./SDK -framework UIKit -framework Foundation -framework WebKit main.m -o Payload/MetaAI.app/MetaAI
           
-          # Ký mã ad-hoc chuẩn bằng ldid để TrollStore chấp nhận
-          ldid -S Payload/MetaAI.app/MetaAI
+          # Ký mã ad-hoc bằng ldid vừa tải về
+          /usr/local/bin/ldid -S Payload/MetaAI.app/MetaAI
 
       - name: Create App Configurations
         run: |
-          # Tạo file Info.plist đi kèm cấu trúc app
           cat <<EOF > Payload/MetaAI.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.xml">
